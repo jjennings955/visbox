@@ -1,0 +1,70 @@
+#from pprint import pprint as print
+import numpy as np
+import sys
+import time
+import zmq
+from keras.engine import Model
+from keras.applications import VGG16
+from keras.preprocessing import image
+from keras.applications.vgg16 import preprocess_input
+import base64
+import cv2
+
+class FeatureComputer(object):
+    def __init__(self, bind_str="tcp://*:5560", parent_model=None, layer=None):
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PAIR)
+        self.socket.bind(bind_str)
+        self.parent_model = parent_model
+        self.curr_model = parent_model
+        if not layer:
+            self.layer = len(self.parent_model.layers) - 1
+        else:
+            self.layer = layer
+
+    def change_layer(self, *args, **kwargs):
+        print("Changing layer")
+        print(args, kwargs)
+        self.layer = kwargs.get('layer', self.layer)
+        self.curr_model = Model(input=[self.parent_model.layers[0].input],
+                           output=[self.parent_model.layers[self.layer].output])
+        print(self.layer)
+        self.socket.send_pyobj({'type': 'layer_changed', 'success': True})
+
+    def get_summary(self, *args, **kwargs):
+        self.socket.send_pyobj({'type': 'summary', 'result' : None})
+
+    def do_predict(self, *args, **kwargs):
+        input = kwargs.pop('input', np.zeros((1,224,224,3)))
+
+        resized = np.float64(cv2.resize(input, (224, 224)))
+        preprocessed = preprocess_input(np.expand_dims(resized, axis=0), dim_ordering='tf')
+
+        result = self.curr_model.predict(preprocessed, verbose=0)
+        self.socket.send_pyobj({'type': 'prediction', 'result': result})
+
+    def do_layerinfo(self, *args, **kwargs):
+        self.socket.send_pyobj({'type': 'layer_info', 'shape': self.curr_model.get_output_shape_for((1, 224, 224, 3)), 'name' : self.parent_model.layers[self.layer].name })
+
+    def do_summary(self, *args, **kwargs):
+        self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.parent_model.layers]})
+
+    def run(self):
+        self.running = True
+        while self.running:
+            message = self.socket.recv_pyobj()
+            if message['type'] == "change_layer":
+                self.change_layer(**message)
+            if message['type'] == 'predict':
+                self.do_predict(**message)
+            if message['type'] == 'layer_info':
+                self.do_layerinfo(**message)
+            if message['type'] == 'summary':
+                self.do_summary(**message)
+
+
+
+if __name__ == "__main__":
+    model = VGG16(False)
+    z = FeatureComputer(parent_model=model)
+    z.run()
