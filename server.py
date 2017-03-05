@@ -65,6 +65,8 @@ class FeatureComputer(object):
 
 
 if __name__ == "__main__":
-    model = VGG16(False)
+    from vggface import load_vggface
+    model = VGG16(False, "imagenet")
+    #model = load_vggface('./models/vggface/vgg-face-keras.h5')
     z = FeatureComputer(parent_model=model)
     z.run()
