@@ -7,7 +7,6 @@ def nocallback(*args, **kwarsg):
 
 class FeatureClient(object):
     def __init__(self, connect_str="tcp://127.0.0.1:5560"):
-        print("Sup")
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
         self.socket.connect(connect_str)
