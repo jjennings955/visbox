@@ -41,17 +41,19 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def set_selected_layer(self, layer=None, button=None):
         if button:
-            if self.last_button:
-                self.last_button.setChecked(False)
-            button.setChecked(True)
+            if self.last_button and self.last_button != button:
+                #self.last_button.setChecked(False)
+                self.last_button.setStyleSheet('')
+            button.setStyleSheet('QPushButton { background-color: #ff0000; }')
             self.last_button = button
+
         self.feature_client.change_layer(layer)
         self.feature_client.get_layer_info()
 
     def summary_received(self, summary):
         self.layer_info = summary['result']
 
-        proxy = pg.QtGui.QGraphicsProxyWidget()
+        self.proxy = proxy = pg.QtGui.QGraphicsProxyWidget()
         frame = pg.QtGui.QFrame()
         p = frame.palette()
         p.setColor(frame.backgroundRole(), pg.QtGui.QColor("black"))
@@ -64,11 +66,12 @@ class VisualizationWindow(QtGui.QMainWindow):
 
         for i, layer in enumerate(self.layer_info):
             button = pg.QtGui.QPushButton("{}".format(layer))
-            button.setCheckable(True)
+            #button.setCheckable(True)
+
             button.clicked.connect(functools.partial(self.set_selected_layer, layer=i, button=button))
             layout.addWidget(button)
         self.layers_view.addItem(proxy)
-
+        #self.layers_view.autoRange()
         self.layers_view.setRange(QtCore.QRectF(0, 0, 1600, 100))
 
     def layerinfo_received(self, layerinfo):
@@ -147,6 +150,8 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.selector.sigRegionChangeFinished.connect(self.selector_mouseup)
 
         self.features_view.addItem(self.selector)
+        self.features_view.addItem(pg.TextItem('Test'))
+
 
         self.features_image.setLevels([0, 255])
         self.detailed_features_image.setLevels([0, 255])
