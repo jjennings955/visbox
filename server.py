@@ -32,10 +32,10 @@ class FeatureComputer(object):
         self.curr_model = Model(input=[self.parent_model.layers[0].input],
                            output=[self.parent_model.layers[self.layer].output])
         print(self.layer)
-        self.socket.send_pyobj({'type': 'layer_changed', 'success': True})
+        self.socket.send_pyobj({'type': 'layer_changed', 'success': True}, zmq.NOBLOCK)
 
     def get_summary(self, *args, **kwargs):
-        self.socket.send_pyobj({'type': 'summary', 'result' : None})
+        self.socket.send_pyobj({'type': 'summary', 'result' : None}, zmq.NOBLOCK)
 
     def do_predict(self, *args, **kwargs):
         input = kwargs.pop('input', np.zeros((1,224,224,3)))
@@ -44,13 +44,13 @@ class FeatureComputer(object):
         preprocessed = preprocess_input(np.expand_dims(resized, axis=0), dim_ordering='tf')
 
         result = self.curr_model.predict(preprocessed, verbose=0)
-        self.socket.send_pyobj({'type': 'prediction', 'result': result})
+        self.socket.send_pyobj({'type': 'prediction', 'result': result}, zmq.NOBLOCK)
 
     def do_layerinfo(self, *args, **kwargs):
-        self.socket.send_pyobj({'type': 'layer_info', 'shape': self.curr_model.get_output_shape_for((1, 224, 224, 3)), 'name' : self.parent_model.layers[self.layer].name })
+        self.socket.send_pyobj({'type': 'layer_info', 'shape': self.curr_model.get_output_shape_for((1, 224, 224, 3)), 'name' : self.parent_model.layers[self.layer].name }, zmq.NOBLOCK)
 
     def do_summary(self, *args, **kwargs):
-        self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.parent_model.layers]})
+        self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.parent_model.layers]}, zmq.NOBLOCK)
 
     def run(self):
         self.running = True
