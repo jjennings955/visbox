@@ -56,14 +56,17 @@ class FeatureComputer(object):
         self.running = True
         while self.running:
             message = self.socket.recv_pyobj()
-            if message['type'] == "change_layer":
-                self.change_layer(**message)
-            if message['type'] == 'predict':
-                self.do_predict(**message)
-            if message['type'] == 'layer_info':
-                self.do_layerinfo(**message)
-            if message['type'] == 'summary':
-                self.do_summary(**message)
+            try:
+                if message['type'] == "change_layer":
+                    self.change_layer(**message)
+                if message['type'] == 'predict':
+                    self.do_predict(**message)
+                if message['type'] == 'layer_info':
+                    self.do_layerinfo(**message)
+                if message['type'] == 'summary':
+                    self.do_summary(**message)
+            except:
+                print("Error sending, ignoring")
 
 
 
