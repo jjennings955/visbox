@@ -5,8 +5,10 @@ import time
 import zmq
 from keras.engine import Model
 from keras.applications import VGG16
+#from keras.applications import ResNet50 as VGG16
 from keras.preprocessing import image
 from keras.applications.vgg16 import preprocess_input
+#from keras.applications.resnet50 import preprocess_input
 import base64
 import cv2
 
@@ -19,6 +21,7 @@ class FeatureComputer(object):
         self.curr_model = parent_model
         if not layer:
             self.layer = len(self.parent_model.layers) - 1
+            #self.layer = 5
         else:
             self.layer = layer
 
@@ -66,7 +69,7 @@ class FeatureComputer(object):
 
 if __name__ == "__main__":
     from vggface import load_vggface
-    #model = VGG16(False, "imagenet")
-    model = load_vggface('./models/vggface/vgg-face-keras.h5')
+    model = VGG16(False, "imagenet")
+    #model = load_vggface('./models/vggface/vgg-face-keras.h5')
     z = FeatureComputer(parent_model=model)
     z.run()
