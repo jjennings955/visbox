@@ -89,15 +89,16 @@ class VisualizationWindow(QtGui.QMainWindow):
             ## Display the data
             if not np.any(self.last_frame):
                 first = True
-            self.last_frame = frame
+            self.last_frame = frame[:, :, ::-1]
             self.camera_image.setImage(frame[:, :, ::-1])
         if first:
             self.do_prediction()
 
     def do_prediction(self):
         if np.any(self.last_frame) and self.ready:
-            self.lastframe_image.setImage(self.last_frame[:,:,::-1])
-            self.feature_client.predict(self.last_frame[:, :, ::-1])
+            im = self.selector.getArrayRegion(self.last_frame, self.camera_image)
+            self.lastframe_image.setImage(im)
+            self.feature_client.predict(im)
 
     def start_timers(self):
         self.camera_timer = QtCore.QTimer()
@@ -141,12 +142,12 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.lastframe_image = pg.ImageItem(border='w')
         self.features_image = pg.ImageItem(border='w')
         self.detailed_features_image = pg.ImageItem(border='w')
-        #self.selector = pg.ROI((0,0), size=(self.current_layer_dimensions[1],self.current_layer_dimensions[2]))
+        self.selector = pg.RectROI((5,5), size=(640, 480))
         #self.selector.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         #self.selector.sigRegionChanged.connect(self.selector_moved)
         #self.selector.sigRegionChangeFinished.connect(self.selector_mouseup)
 
-        #self.features_view.addItem(self.selector)
+        self.camera_view.addItem(self.selector)
         self.features_view.addItem(pg.TextItem('Test'))
         self.features_image.mouseClickEvent = self.select_filter
 
@@ -196,8 +197,9 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.features_view.autoRange()
         self.lastframe_view.autoRange()
         #self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
-        self.detailed_features_image.setImage(transposed[self.selected_filter])
-        self.detailed_feature_view.autoRange()
+        if self.selected_filter < transposed.shape[0]:
+            self.detailed_features_image.setImage(transposed[self.selected_filter])
+            self.detailed_feature_view.autoRange()
         self.do_prediction()
 
 
