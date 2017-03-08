@@ -12,6 +12,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         super(VisualizationWindow, self).__init__()
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.win = pg.GraphicsLayoutWidget(self)
+        self.win.ci.setContentsMargins(0, 0, 0, 0)
         self.setCentralWidget(self.win)
         self.setGeometry(0, 200, 1600, 900)
 
@@ -76,14 +77,10 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def layerinfo_received(self, layerinfo):
         self.current_layer_dimensions = layerinfo['shape'][1:]
-        self.selector.setSize(self.current_layer_dimensions[1], self.current_layer_dimensions[2])
+        #self.selector.setSize(self.current_layer_dimensions[1], self.current_layer_dimensions[2])
         #self.selector.snapSize = self.current_layer_dimensions[2]
         self.current_layer_name = layerinfo['name']
         self.rows, self.cols = good_shape(self.current_layer_dimensions[-1])
-        self.selector.setPos((0, 0))
-
-
-
 
     def camera_callback(self):
         has_frame, frame = self.video_capture.read()
@@ -119,9 +116,9 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_view = self.win.addViewBox(row=0, col=0, rowspan=1, colspan=1)
         self.lastframe_view = self.win.addViewBox(row=0, col=1, rowspan=1, colspan=1)
         self.layers_view = self.win.addViewBox(row=1, col=0, rowspan=1, colspan=3)
-        self.features_view = self.win.addViewBox(row=2, col=0, rowspan=8, colspan=3)
+        self.features_view = self.win.addViewBox(row=2, col=0, rowspan=1, colspan=3)
         self.detailed_feature_view = self.win.addViewBox(row=0, col=2, rowspan=1, colspan=1)
-        self.features_view.mouseClickEvent = self.select_filter
+
         self.camera_view.setAspectLocked(True)
         self.features_view.setAspectLocked(True)
         self.layers_view.setAspectLocked(True)
@@ -144,14 +141,14 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.lastframe_image = pg.ImageItem(border='w')
         self.features_image = pg.ImageItem(border='w')
         self.detailed_features_image = pg.ImageItem(border='w')
-        self.selector = pg.ROI((0,0), size=(self.current_layer_dimensions[1],self.current_layer_dimensions[2]))
-        self.selector.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-        self.selector.sigRegionChanged.connect(self.selector_moved)
-        self.selector.sigRegionChangeFinished.connect(self.selector_mouseup)
+        #self.selector = pg.ROI((0,0), size=(self.current_layer_dimensions[1],self.current_layer_dimensions[2]))
+        #self.selector.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        #self.selector.sigRegionChanged.connect(self.selector_moved)
+        #self.selector.sigRegionChangeFinished.connect(self.selector_mouseup)
 
-        self.features_view.addItem(self.selector)
+        #self.features_view.addItem(self.selector)
         self.features_view.addItem(pg.TextItem('Test'))
-
+        self.features_image.mouseClickEvent = self.select_filter
 
         self.features_image.setLevels([0, 255])
         self.detailed_features_image.setLevels([0, 255])
@@ -167,33 +164,26 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.lastframe_view.enableAutoRange()
 
     def select_filter(self, event):
-        pos_item = self.features_view.mapFromViewToItem(self.features_image, QtCore.QPointF(event.pos().x(), event.pos().y()))
-        x = pos_item.x()
-        y = pos_item.y()
-        x_size, y_size = self.features_view.viewPixelSize()
-        print('lastfeatureimageshape', self.last_feature_image.shape)
-        print('size', x_size, y_size)
-        print(x, y)
-        x /= x_size
-        y /= y_size
+        x = event.pos().x()
+        y = event.pos().y()
+        row = y // self.current_layer_dimensions[0]
+        col = x // self.current_layer_dimensions[1]
 
-        print(x, y)
-
-        h, w = self.current_layer_dimensions[:-1]
-        x /= w
-        y /= h
-        print(x,y)
-        print('----')
+        #self.selector.setPos((row*self.current_layer_dimensions[0], col*self.current_layer_dimensions[1]))
+        n = self.cols*row + col
+        if n < self.current_layer_dimensions[2]:
+            print("Selected filter {}".format(n))
+            self.selected_filter = int(n)
 
 
-    def selector_moved(self, roi=None, event=None):
-        if np.any(self.last_feature_image):
-            self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
-
-    def selector_mouseup(self, *args, **kwargs):
-        x = np.round(self.selector.pos().x()/self.current_layer_dimensions[0])*self.current_layer_dimensions[0]
-        y = np.round(self.selector.pos().y()/self.current_layer_dimensions[1])*self.current_layer_dimensions[1]
-        self.selector.setPos((x, y), update=False)
+    # def selector_moved(self, roi=None, event=None):
+    #     if np.any(self.last_feature_image):
+    #         self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
+    #
+    # def selector_mouseup(self, *args, **kwargs):
+    #     x = np.round(self.selector.pos().x()/self.current_layer_dimensions[0])*self.current_layer_dimensions[0]
+    #     y = np.round(self.selector.pos().y()/self.current_layer_dimensions[1])*self.current_layer_dimensions[1]
+    #     self.selector.setPos((x, y), update=False)
 
 
     def prediction_received(self, result, *args, **kwargs):
@@ -205,7 +195,8 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.features_image.setImage(self.last_feature_image)
         self.features_view.autoRange()
         self.lastframe_view.autoRange()
-        self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
+        #self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
+        self.detailed_features_image.setImage(transposed[self.selected_filter])
         self.detailed_feature_view.autoRange()
         self.do_prediction()
 
