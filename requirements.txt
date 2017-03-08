@@ -2,3 +2,5 @@ tensorflow-gpu==0.12.1
 pyzmq==16.0.2
 pyqtgraph==0.10.0+gdd5a8bf
 numpy==1.11.3
+Keras==1.2.2
+h5py==2.6.0
