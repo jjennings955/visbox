@@ -11,61 +11,28 @@ class VisualizationWindow(QtGui.QMainWindow):
     def __init__(self):
         super(VisualizationWindow, self).__init__()
         pg.setConfigOptions(imageAxisOrder='row-major')
-        #self.win = pg.GraphicsLayoutWidget(self)
-        #self.win.ci.setContentsMargins(0, 0, 0, 0)
 
         frame = pg.QtGui.QFrame()
-        p = frame.palette()
-        p.setColor(frame.backgroundRole(), pg.QtGui.QColor("black"))
-        frame.setPalette(p)
-
-        #frame.setGeometry(0, 0, 1, 1)
         layout = pg.QtGui.QGridLayout()
         frame.setLayout(layout)
 
-
-        # #layout.setRowStretch(0, 100)
-        # #layout.setRowStretch(1, 1)
-        # button = pg.QtGui.QPushButton("hehe")
-        # button.setMinimumHeight(100)
-        # layout.addWidget(button, 0, 0, 1, 1)
-        #
-        # layout.addWidget(self.win, 1, 0, 1, 1)
-        # #for i in range(1, 10):
-        # i = 0
-        # button = pg.QtGui.QPushButton("heh")
-        # button.setMinimumHeight(100)
-        # layout.addWidget(button, 2, 0, 1, 1)
-
-
         self.camera_window = pg.GraphicsLayoutWidget(self)
         self.feature_window = pg.GraphicsLayoutWidget(self)
-        #self.layer_window = pg.GraphicsLayourWidget(self)
         self.detailed_feature_window = pg.GraphicsLayoutWidget()
-        self.layer_frame = pg.QtGui.QFrame()
-        #        p = frame.palette()
-        #        p.setColor(frame.backgroundRole(), pg.QtGui.QColor("black"))
-        #        frame.setPalette(p)
 
-        #        frame.setGeometry(0, 0, 1, 1)
+        self.layer_frame = pg.QtGui.QFrame()
         self.layer_layout = pg.QtGui.QHBoxLayout()
         self.layer_frame.setLayout(self.layer_layout)
 
-
         layout.addWidget(self.camera_window, 0, 0, 1, 2)
-        #layout.addWidget(self.detailed_feature_window, 0, 1, 1, 1)
-        layout.addWidget(self.feature_window, 1, 0, 2, 2)
-        layout.addWidget(self.layer_frame, 2, 0, 1, 2)
+        layout.addWidget(self.build_config_frame(), 1, 0, 1, 1)
+        layout.addWidget(self.feature_window, 2, 0, 2, 2)
+        layout.addWidget(self.layer_frame, 3, 0, 1, 2)
 
         layout.setRowStretch(0, 3)
-        layout.setRowStretch(1, 4)
-        layout.setRowStretch(2, 0.2)
-
-        #self.feature_window.setMinimumHeight(100)
-
-        #self.proxy = proxy = pg.QtGui.QGraphicsProxyWidget()
-
-
+        layout.setRowStretch(1, .1)
+        layout.setRowStretch(2, 4)
+        layout.setRowStretch(3, 0.1)
 
         self.setCentralWidget(frame)
 
@@ -91,14 +58,54 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.last_frame = None
         self.last_button = None
         self.rois = []
+        self.selector = None
 
         self.build_views()
         self.start_timers()
 
+    def build_config_frame(self):
+        self.config_frame = pg.QtGui.QFrame()
+        self.config_layout = pg.QtGui.QHBoxLayout()
+        self.config_frame.setLayout(self.config_layout)
+        self.webcam_button = pg.QtGui.QPushButton("Camera")
+        self.video_button = pg.QtGui.QPushButton("Video")
+        self.ROI_button = pg.QtGui.QPushButton("ROI")
+
+        self.config_layout.addWidget(self.webcam_button)
+        self.config_layout.addWidget(self.video_button)
+        self.config_layout.addWidget(self.ROI_button)
+
+        self.webcam_button.clicked.connect(self.webcam_clicked)
+        self.video_button.clicked.connect(self.video_clicked)
+        self.ROI_button.clicked.connect(self.ROI_clicked)
+
+        return self.config_frame
+
+    def webcam_clicked(self, *args, **kwargs):
+        self.video_capture = cv2.VideoCapture(0)
+
+    def video_clicked(self, *args, **kwargs):
+        z = QtGui.QFileDialog.getOpenFileName()
+        try:
+            z = cv2.VideoCapture(z)
+            assert z.isOpened()
+            self.video_capture = z
+        except Exception as e:
+            print(e)
+
+    def ROI_clicked(self, *args, **kwargs):
+        if not self.selector:
+            self.selector = pg.RectROI((5, 5), size=(640, 480))
+            self.camera_view.addItem(self.selector)
+        else:
+            self.camera_view.removeItem(self.selector)
+            self.selector = None
+
+
+
     def set_selected_layer(self, layer=None, button=None):
         if button:
             if self.last_button and self.last_button != button:
-                #self.last_button.setChecked(False)
                 self.last_button.setStyleSheet('')
             button.setStyleSheet('QPushButton { background-color: #ff0000; }')
             self.last_button = button
@@ -108,32 +115,15 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def summary_received(self, summary):
         self.layer_info = summary['result']
-#
-#         self.proxy = proxy = pg.QtGui.QGraphicsProxyWidget()
-#         frame = pg.QtGui.QFrame()
-# #        p = frame.palette()
-# #        p.setColor(frame.backgroundRole(), pg.QtGui.QColor("black"))
-# #        frame.setPalette(p)
-#
-# #        frame.setGeometry(0, 0, 1, 1)
-#         layout = pg.QtGui.QHBoxLayout()
-#         frame.setLayout(layout)
-#         proxy.setWidget(frame)
 
         for i, layer in enumerate(self.layer_info):
             button = pg.QtGui.QPushButton("{}".format(layer))
-            #button.setCheckable(True)
 
             button.clicked.connect(functools.partial(self.set_selected_layer, layer=i, button=button))
             self.layer_layout.addWidget(button)
-        #self.layers_view.addItem(proxy)
-        #self.layers_view.autoRange()
-        #self.layers_view.setRange(QtCore.QRectF(0, 0, 1600, 100))
 
     def layerinfo_received(self, layerinfo):
         self.current_layer_dimensions = layerinfo['shape'][1:]
-        #self.selector.setSize(self.current_layer_dimensions[1], self.current_layer_dimensions[2])
-        #self.selector.snapSize = self.current_layer_dimensions[2]
         self.current_layer_name = layerinfo['name']
         self.rows, self.cols = good_shape(self.current_layer_dimensions[-1])
 
@@ -141,7 +131,6 @@ class VisualizationWindow(QtGui.QMainWindow):
         has_frame, frame = self.video_capture.read()
         first = False
         if has_frame:
-            ## Display the data
             if not np.any(self.last_frame):
                 first = True
             self.last_frame = frame[:, :, ::-1]
@@ -167,33 +156,21 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.feature_server_timer.timeout.connect(self.feature_client.check)
         self.feature_server_timer.start(50)
 
-        #self.prediction_timer = QtCore.QTimer()
-        #self.prediction_timer.timeout.connect(self.do_prediction)
-        #self.prediction_timer.start(100)
-
     def build_views(self):
-
-
         self.camera_view = self.camera_window.addViewBox()#row=0, col=0, rowspan=1, colspan=1)
         self.lastframe_view = self.camera_window.addViewBox()# row=0, col=1, rowspan=1, colspan=1)
         self.features_view = self.feature_window.addViewBox()  # row=2, col=0, rowspan=1, colspan=3)
-        #self.layers_view = self.feature_window.addViewBox(row=1, colspan=4)#row=1, col=0, rowspan=1, colspan=3)
 
         self.detailed_feature_view = self.camera_window.addViewBox() # row=0, col=2, rowspan=1, colspan=1)
         self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1600))
         self.camera_view.setAspectLocked(True)
         self.features_view.setAspectLocked(True)
-        #self.layers_view.setAspectLocked(True)
         self.detailed_feature_view.setAspectLocked(True)
         self.lastframe_view.setAspectLocked(True)
 
-        # view2.setMovable()
         self.camera_view.invertY()
         self.camera_view.setMouseEnabled(False, False)
         self.detailed_feature_view.invertY()
-        #self.features_view.setMouseEnabled(False, False)
-        #self.layers_view.invertY()
-        #self.layers_view.setMouseEnabled(False, False)
         self.features_view.invertY()
         self.lastframe_view.invertY()
         self.lastframe_view.setMouseEnabled(False, False)
@@ -204,14 +181,9 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.lastframe_image = pg.ImageItem(border='w')
         self.features_image = pg.ImageItem(border='w')
         self.detailed_features_image = pg.ImageItem(border='w')
-        self.selector = pg.RectROI((5,5), size=(640, 480))
-        self.camera_view.addItem(self.selector)
-        #self.selector.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
-        #self.selector.sigRegionChanged.connect(self.selector_moved)
-        #self.selector.sigRegionChangeFinished.connect(self.selector_mouseup)
 
-        #self.camera_view.addItem(self.selector)
-        self.features_view.addItem(pg.TextItem('Test'))
+
+
         self.features_image.mouseClickEvent = self.select_filter
 
         self.features_image.setLevels([0, 255])
@@ -233,22 +205,10 @@ class VisualizationWindow(QtGui.QMainWindow):
         row = y // self.current_layer_dimensions[0]
         col = x // self.current_layer_dimensions[1]
 
-        #self.selector.setPos((row*self.current_layer_dimensions[0], col*self.current_layer_dimensions[1]))
         n = self.cols*row + col
         if n < self.current_layer_dimensions[2]:
             print("Selected filter {}".format(n))
             self.selected_filter = int(n)
-
-
-    # def selector_moved(self, roi=None, event=None):
-    #     if np.any(self.last_feature_image):
-    #         self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
-    #
-    # def selector_mouseup(self, *args, **kwargs):
-    #     x = np.round(self.selector.pos().x()/self.current_layer_dimensions[0])*self.current_layer_dimensions[0]
-    #     y = np.round(self.selector.pos().y()/self.current_layer_dimensions[1])*self.current_layer_dimensions[1]
-    #     self.selector.setPos((x, y), update=False)
-
 
     def prediction_received(self, result, *args, **kwargs):
         result = result['result'].squeeze()
@@ -256,12 +216,9 @@ class VisualizationWindow(QtGui.QMainWindow):
         image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols)
         image /= np.max(image)
         self.last_feature_image = np.uint8(255.0 * image)
-        #self.last_feature_image[::self.current_layer_dimensions[0], :] = 255.0
-        #self.last_feature_image[:, ::self.current_layer_dimensions[1]] = 255.0
         self.features_image.setImage(self.last_feature_image)
         self.features_view.autoRange()
         self.lastframe_view.autoRange()
-        #self.detailed_features_image.setImage(self.selector.getArrayRegion(self.last_feature_image, self.features_image))
         if self.selected_filter < transposed.shape[0]:
             self.detailed_features_image.setImage(transposed[self.selected_filter])
             self.detailed_feature_view.autoRange()
@@ -273,7 +230,6 @@ if __name__ == '__main__':
 
     app = QtGui.QApplication([])
     z = VisualizationWindow()
-#    win = z.win
     z.show()
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()
