@@ -1,19 +1,12 @@
-#from pprint import pprint as print
 import numpy as np
-import sys
-import time
 import zmq
 from keras.engine import Model
 from keras.applications import VGG16
-#from keras.applications import ResNet50 as VGG16
-from keras.preprocessing import image
 from keras.applications.vgg16 import preprocess_input
-#from keras.applications.resnet50 import preprocess_input
-import base64
 import cv2
 
 class FeatureComputer(object):
-    def __init__(self, bind_str="tcp://*:5560", parent_model=None, layer=None):
+    def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
         self.socket.bind(bind_str)
@@ -21,7 +14,6 @@ class FeatureComputer(object):
         self.curr_model = parent_model
         if not layer:
             self.layer = len(self.parent_model.layers) - 1
-            #self.layer = 5
         else:
             self.layer = layer
 
@@ -69,9 +61,13 @@ class FeatureComputer(object):
                 print("Error sending, ignoring")
 
 
+def run_vgg16():
+    model = VGG16(False, "imagenet")
+    z = FeatureComputer(parent_model=model)
+    z.run()
 
 if __name__ == "__main__":
-    from vggface import load_vggface
+#    from vggface import load_vggface
     model = VGG16(False, "imagenet")
     #model = load_vggface('./models/vggface/vgg-face-keras.h5')
     z = FeatureComputer(parent_model=model)

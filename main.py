@@ -67,19 +67,28 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.config_frame = pg.QtGui.QFrame()
         self.config_layout = pg.QtGui.QHBoxLayout()
         self.config_frame.setLayout(self.config_layout)
+        self.server_button = pg.QtGui.QPushButton("Start Server")
         self.webcam_button = pg.QtGui.QPushButton("Camera")
         self.video_button = pg.QtGui.QPushButton("Video")
         self.ROI_button = pg.QtGui.QPushButton("ROI")
 
+        self.config_layout.addWidget(self.server_button)
         self.config_layout.addWidget(self.webcam_button)
         self.config_layout.addWidget(self.video_button)
         self.config_layout.addWidget(self.ROI_button)
 
+        self.server_button.clicked.connect(self.server_clicked)
         self.webcam_button.clicked.connect(self.webcam_clicked)
         self.video_button.clicked.connect(self.video_clicked)
         self.ROI_button.clicked.connect(self.ROI_clicked)
 
         return self.config_frame
+
+    def server_clicked(self, *args, **kwargs):
+        from server import run_vgg16
+        from multiprocessing import Process
+        p = Process(target=run_vgg16)
+        p.start()
 
     def webcam_clicked(self, *args, **kwargs):
         self.video_capture = cv2.VideoCapture(0)
@@ -157,11 +166,11 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.feature_server_timer.start(50)
 
     def build_views(self):
-        self.camera_view = self.camera_window.addViewBox()#row=0, col=0, rowspan=1, colspan=1)
-        self.lastframe_view = self.camera_window.addViewBox()# row=0, col=1, rowspan=1, colspan=1)
-        self.features_view = self.feature_window.addViewBox()  # row=2, col=0, rowspan=1, colspan=3)
+        self.camera_view = self.camera_window.addViewBox()
+        self.lastframe_view = self.camera_window.addViewBox()
+        self.features_view = self.feature_window.addViewBox()
 
-        self.detailed_feature_view = self.camera_window.addViewBox() # row=0, col=2, rowspan=1, colspan=1)
+        self.detailed_feature_view = self.camera_window.addViewBox()
         self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1600))
         self.camera_view.setAspectLocked(True)
         self.features_view.setAspectLocked(True)
