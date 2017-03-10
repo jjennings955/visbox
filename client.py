@@ -6,7 +6,6 @@ def nocallback(*args, **kwarsg):
     pass
 
 class FeatureClient(object):
-    #def __init__(self, connect_str="tcp://129.107.118.181:5560"):
     def __init__(self, connect_str="tcp://127.0.0.1:5560"):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
@@ -56,8 +55,3 @@ class FeatureClient(object):
 
 if __name__ == "__main__":
     x = FeatureClient()
-    x.predict(np.random.randn(1,224,224,3))
-    for i in range(5):
-        a, b = x.check()
-        if a:
-            print(b)
