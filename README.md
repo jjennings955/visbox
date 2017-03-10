@@ -1,6 +1,6 @@
 # visbox (tentative name, apparently it's already a thing)
 This is a tool I created to visualize neural networks in keras.
-Heavily inspired (and functionally inferior to) https://github.com/yosinski/deep-visualization-toolbox
+Heavily inspired by (and functionally inferior to) https://github.com/yosinski/deep-visualization-toolbox
 
 ## Features
 - Runs at approximately 20-30+ fps on various GPUs (My laptop's Quadro M1000M, a Geforce 760, a K40 server (over LAN), 970M on a Macbook Pro)
