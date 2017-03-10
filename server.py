@@ -3,6 +3,8 @@ import zmq
 from keras.engine import Model
 from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
+#from keras.applications import ResNet50 as VGG16
+#from keras.applications.resnet50 import preprocess_input
 import cv2
 
 class FeatureComputer(object):
@@ -13,7 +15,7 @@ class FeatureComputer(object):
         self.parent_model = parent_model
         self.curr_model = parent_model
         if not layer:
-            self.layer = len(self.parent_model.layers) - 1
+            self.layer = 0 #len(self.parent_model.layers) - 1
         else:
             self.layer = layer
 

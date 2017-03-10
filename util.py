@@ -1,4 +1,5 @@
 import numpy as np
+import yaml
 
 def good_shape(n, min_aspect=1.0, max_aspect=6, max_width=np.inf, max_height=np.inf, min_width=1, min_height=1, method='this is only here for backwards compatibility'):
     from numpy import log
@@ -33,3 +34,14 @@ def build_imagegrid(image_list, n_rows, n_cols):
                 break
             image[row * side:(row + 1) * side, col * side:(col + 1) * side] = image_list[row * n_cols + col]
     return image
+
+def default_config():
+    return { 'servers' : { 'local' : 'tcp://127.0.0.1:5560'}}
+
+def load_config():
+    try:
+        return yaml.load(open('config.yaml', 'r'))
+    except Exception as e:
+        config = default_config()
+        yaml.dump(config, open('config.yaml', 'w'))
+        return config

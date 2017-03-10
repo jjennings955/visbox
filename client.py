@@ -6,17 +6,20 @@ def nocallback(*args, **kwarsg):
     pass
 
 class FeatureClient(object):
-    def __init__(self, connect_str="tcp://129.107.118.181:5560"):
-    #def __init__(self, connect_str="tcp://127.0.0.1:5561"):
+    #def __init__(self, connect_str="tcp://129.107.118.181:5560"):
+    def __init__(self, connect_str="tcp://127.0.0.1:5560"):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
-        self.socket.connect(connect_str)
+        self.connect(connect_str)
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)
         self.running = False
         self.prediction_callback = nocallback
         self.summary_callback = nocallback
         self.layerinfo_callback = nocallback
+
+    def connect(self, connect_str):
+        self.socket.connect(connect_str)
 
     def predict(self, input):
         self.socket.send_pyobj({'type' : 'predict', 'input' : input})

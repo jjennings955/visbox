@@ -5,13 +5,13 @@ import pyqtgraph as pg
 import cv2
 
 from client import FeatureClient
-from util import good_shape, build_imagegrid
+from util import good_shape, build_imagegrid, load_config
 
 class VisualizationWindow(QtGui.QMainWindow):
     def __init__(self):
         super(VisualizationWindow, self).__init__()
         pg.setConfigOptions(imageAxisOrder='row-major')
-
+        self.settings = load_config()
         frame = pg.QtGui.QFrame()
         layout = pg.QtGui.QGridLayout()
         frame.setLayout(layout)
@@ -21,7 +21,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.detailed_feature_window = pg.GraphicsLayoutWidget()
 
         self.layer_frame = pg.QtGui.QFrame()
-        self.layer_layout = pg.QtGui.QHBoxLayout()
+        self.layer_layout = pg.QtGui.QGridLayout()
         self.layer_frame.setLayout(self.layer_layout)
 
         layout.addWidget(self.camera_window, 0, 0, 1, 2)
@@ -44,8 +44,21 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.ready = True
 
         self.rows, self.cols = good_shape(self.current_layer_dimensions[0])
-        self.feature_client = FeatureClient()
 
+
+        self.last_feature_image = None
+        self.video_capture = None
+        self.last_frame = None
+        self.last_button = None
+        self.feature_server_timer = None
+        self.rois = []
+        self.selector = None
+
+        self.build_views()
+        self.start_timers()
+
+    def init_client(self, connect_str=None):
+        self.feature_client = FeatureClient(connect_str)
         self.feature_client.prediction_received(self.prediction_received)
         self.feature_client.layerinfo_received(self.layerinfo_received)
         self.feature_client.summary_received(self.summary_received)
@@ -53,36 +66,44 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.feature_client.get_summary()
         self.feature_client.get_layer_info()
 
-        self.last_feature_image = None
-        self.video_capture = cv2.VideoCapture(0)
-        self.last_frame = None
-        self.last_button = None
-        self.rois = []
-        self.selector = None
-
-        self.build_views()
-        self.start_timers()
-
     def build_config_frame(self):
         self.config_frame = pg.QtGui.QFrame()
         self.config_layout = pg.QtGui.QHBoxLayout()
         self.config_frame.setLayout(self.config_layout)
         self.server_button = pg.QtGui.QPushButton("Start Server")
+        self.connect_button = pg.QtGui.QPushButton("Connect")
         self.webcam_button = pg.QtGui.QPushButton("Camera")
         self.video_button = pg.QtGui.QPushButton("Video")
         self.ROI_button = pg.QtGui.QPushButton("ROI")
+        self.cb = QtGui.QComboBox()
 
-        self.config_layout.addWidget(self.server_button)
+        self.cb.addItems(list(self.settings['servers'].keys()))
+
+        self.config_layout.addWidget(QtGui.QLabel("Server:"))
+        self.config_layout.addWidget(self.cb)
+        self.config_layout.addWidget(self.connect_button)
         self.config_layout.addWidget(self.webcam_button)
         self.config_layout.addWidget(self.video_button)
         self.config_layout.addWidget(self.ROI_button)
+        self.config_layout.addWidget(self.server_button)
 
         self.server_button.clicked.connect(self.server_clicked)
         self.webcam_button.clicked.connect(self.webcam_clicked)
         self.video_button.clicked.connect(self.video_clicked)
         self.ROI_button.clicked.connect(self.ROI_clicked)
+        self.connect_button.clicked.connect(self.connect_clicked)
 
         return self.config_frame
+
+    def connect_clicked(self):
+        self.init_client(self.settings['servers'][self.cb.currentText()])
+        if self.feature_server_timer:
+            self.feature_server_timer.stop()
+
+        self.feature_server_timer = QtCore.QTimer()
+
+        self.feature_server_timer.timeout.connect(self.feature_client.check)
+        self.feature_server_timer.start(50)
 
     def server_clicked(self, *args, **kwargs):
         from server import run_vgg16
@@ -129,7 +150,8 @@ class VisualizationWindow(QtGui.QMainWindow):
             button = pg.QtGui.QPushButton("{}".format(layer))
 
             button.clicked.connect(functools.partial(self.set_selected_layer, layer=i, button=button))
-            self.layer_layout.addWidget(button)
+            row, col = divmod(i, 16)
+            self.layer_layout.addWidget(button, row, col)
 
     def layerinfo_received(self, layerinfo):
         self.current_layer_dimensions = layerinfo['shape'][1:]
@@ -137,15 +159,16 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.rows, self.cols = good_shape(self.current_layer_dimensions[-1])
 
     def camera_callback(self):
-        has_frame, frame = self.video_capture.read()
-        first = False
-        if has_frame:
-            if not np.any(self.last_frame):
-                first = True
-            self.last_frame = frame[:, :, ::-1]
-            self.camera_image.setImage(frame[:, :, ::-1])
-        if first:
-            self.do_prediction()
+        if self.video_capture:
+            has_frame, frame = self.video_capture.read()
+            first = False
+            if has_frame:
+                if not np.any(self.last_frame):
+                    first = True
+                self.last_frame = frame[:, :, ::-1]
+                self.camera_image.setImage(frame[:, :, ::-1])
+            if first:
+                self.do_prediction()
 
     def do_prediction(self):
         if np.any(self.last_frame) and self.ready:
@@ -161,9 +184,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_timer.timeout.connect(self.camera_callback)
         self.camera_timer.start(10)
 
-        self.feature_server_timer = QtCore.QTimer()
-        self.feature_server_timer.timeout.connect(self.feature_client.check)
-        self.feature_server_timer.start(50)
+
 
     def build_views(self):
         self.camera_view = self.camera_window.addViewBox()
@@ -189,6 +210,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_image = pg.ImageItem(border='w')
         self.lastframe_image = pg.ImageItem(border='w')
         self.features_image = pg.ImageItem(border='w')
+
         self.detailed_features_image = pg.ImageItem(border='w')
 
 
@@ -196,6 +218,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.features_image.mouseClickEvent = self.select_filter
 
         self.features_image.setLevels([0, 255])
+        self.features_image.setAutoDownsample(False)
         self.detailed_features_image.setLevels([0, 255])
 
         self.camera_view.addItem(self.camera_image)
@@ -224,6 +247,8 @@ class VisualizationWindow(QtGui.QMainWindow):
         transposed = np.transpose(result, (2, 0, 1))
         image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols)
         image /= np.max(image)
+        #image[::self.current_layer_dimensions[0], :] = 1.0
+        #image[:, ::self.current_layer_dimensions[1]] = 1.0
         self.last_feature_image = np.uint8(255.0 * image)
         self.features_image.setImage(self.last_feature_image)
         self.features_view.autoRange()
