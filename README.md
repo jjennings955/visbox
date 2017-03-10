@@ -1,7 +1,7 @@
 # Windows
 ```bash
 conda create --name visbox python=3.5
-activate visbox # source activate visbox on linux
+activate visbox
 pip install git+https://github.com/fchollet/keras.git
 conda install pyzmq==16.0.2
 conda install numpy scipy h5py pyyaml
@@ -10,3 +10,29 @@ pip install pyqt5
 pip install tensorflow # tensorflow-gpu if you have a gpu
 conda install -c anaconda pyqt=4.11.4
 ```
+
+# Linux/OS X (untested)
+```bash
+conda create --name visbox python=3.5
+source activate visbox
+pip install git+https://github.com/fchollet/keras.git
+conda install pyzmq==16.0.2
+conda install numpy scipy h5py pyyaml
+conda install -c menpo opencv3
+pip install pyqt5
+pip install tensorflow # tensorflow-gpu if you have a gpu
+conda install -c anaconda pyqt=4.11.4
+```
+
+# Usage
+``
+activate visbox
+python main.py
+```
+
+Click "Run server" (may take a while depending on GPU/etc). Optionally, you can run server.py in another terminal (or on another server).
+Click "Connect"
+Click "Webcam" or "Video" to select a video source
+
+You can select a layer at the bottom.
+Click a feature to enlarge it.
