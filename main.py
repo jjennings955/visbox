@@ -57,7 +57,15 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.build_views()
         self.start_timers()
 
+        if self.settings.get('auto_connect', False):
+           self.init_client(self.settings['servers'][self.settings.get('default_server', 'local')])
+           self.start_feature_server_timer()
+        if self.settings.get('auto_start_camera', False):
+            self.webcam_clicked()
+
+
     def init_client(self, connect_str=None):
+        print("init_client", connect_str)
         self.feature_client = FeatureClient(connect_str)
         self.feature_client.prediction_received(self.prediction_received)
         self.feature_client.layerinfo_received(self.layerinfo_received)
@@ -95,15 +103,17 @@ class VisualizationWindow(QtGui.QMainWindow):
 
         return self.config_frame
 
+    def start_feature_server_timer(self):
+        self.feature_server_timer = QtCore.QTimer()
+        self.feature_server_timer.timeout.connect(self.feature_client.check)
+        self.feature_server_timer.start(50)
+
     def connect_clicked(self):
         self.init_client(self.settings['servers'][self.cb.currentText()])
         if self.feature_server_timer:
             self.feature_server_timer.stop()
+        self.start_feature_server_timer()
 
-        self.feature_server_timer = QtCore.QTimer()
-
-        self.feature_server_timer.timeout.connect(self.feature_client.check)
-        self.feature_server_timer.start(50)
 
     def server_clicked(self, *args, **kwargs):
         from server import run_vgg16
@@ -185,51 +195,49 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_timer.start(10)
 
 
-
-    def build_views(self):
+    def build_camera_view(self):
         self.camera_view = self.camera_window.addViewBox()
-        self.lastframe_view = self.camera_window.addViewBox()
-        self.features_view = self.feature_window.addViewBox()
-
-        self.detailed_feature_view = self.camera_window.addViewBox()
-        self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1600))
         self.camera_view.setAspectLocked(True)
-        self.features_view.setAspectLocked(True)
-        self.detailed_feature_view.setAspectLocked(True)
-        self.lastframe_view.setAspectLocked(True)
-
         self.camera_view.invertY()
         self.camera_view.setMouseEnabled(False, False)
-        self.detailed_feature_view.invertY()
-        self.features_view.invertY()
+        self.camera_image = pg.ImageItem(border='w')
+        self.camera_view.addItem(self.camera_image)
+
+    def build_lastframe_view(self):
+        self.lastframe_view = self.camera_window.addViewBox()
+        self.lastframe_view.setAspectLocked(True)
         self.lastframe_view.invertY()
         self.lastframe_view.setMouseEnabled(False, False)
-
-
-
-        self.camera_image = pg.ImageItem(border='w')
         self.lastframe_image = pg.ImageItem(border='w')
-        self.features_image = pg.ImageItem(border='w')
-
-        self.detailed_features_image = pg.ImageItem(border='w')
-
-
-
-        self.features_image.mouseClickEvent = self.select_filter
-
-        self.features_image.setLevels([0, 255])
-        self.features_image.setAutoDownsample(False)
-        self.detailed_features_image.setLevels([0, 255])
-
-        self.camera_view.addItem(self.camera_image)
-        self.features_view.addItem(self.features_image)
-        self.detailed_feature_view.addItem(self.detailed_features_image)
         self.lastframe_view.addItem(self.lastframe_image)
-
-        self.features_view.enableAutoRange()
-        #self.layers_view.enableAutoRange()
-        self.detailed_feature_view.enableAutoRange()
         self.lastframe_view.enableAutoRange()
+
+    def build_features_view(self):
+        self.features_view = self.feature_window.addViewBox()
+        self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1600))
+        self.features_view.setAspectLocked(True)
+        self.features_view.invertY()
+        self.features_image = pg.ImageItem(border='w')
+        self.features_image.mouseClickEvent = self.select_filter
+        self.features_image.setLevels([0, 255])
+        self.features_view.addItem(self.features_image)
+        self.features_view.enableAutoRange()
+
+    def build_detailed_feature_view(self):
+        self.detailed_feature_view = self.camera_window.addViewBox()
+        self.detailed_feature_view.setAspectLocked(True)
+        self.detailed_feature_view.invertY()
+        self.detailed_features_image = pg.ImageItem(border='w')
+        self.detailed_features_image.setLevels([0, 255])
+        self.detailed_feature_view.addItem(self.detailed_features_image)
+        self.detailed_feature_view.enableAutoRange()
+
+    def build_views(self):
+        self.build_camera_view()
+        self.build_lastframe_view()
+        self.build_features_view()
+        self.build_detailed_feature_view()
+
 
     def select_filter(self, event):
         x = event.pos().x()
@@ -247,8 +255,6 @@ class VisualizationWindow(QtGui.QMainWindow):
         transposed = np.transpose(result, (2, 0, 1))
         image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols)
         image /= np.max(image)
-        #image[::self.current_layer_dimensions[0], :] = 1.0
-        #image[:, ::self.current_layer_dimensions[1]] = 1.0
         self.last_feature_image = np.uint8(255.0 * image)
         self.features_image.setImage(self.last_feature_image)
         self.features_view.autoRange()
