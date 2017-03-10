@@ -9,6 +9,9 @@ class FeatureClient(object):
     def __init__(self, connect_str="tcp://127.0.0.1:5560"):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
+        self.socket.plain_username = b'admin'
+        self.socket.plain_password = b'secret'
+        self.socket.connect(connect_str)
         self.connect(connect_str)
         self.poller = zmq.Poller()
         self.poller.register(self.socket, zmq.POLLIN)

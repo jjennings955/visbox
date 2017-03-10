@@ -1,19 +1,27 @@
+
 import numpy as np
 import zmq
+import zmq.auth
+from zmq.auth.thread import ThreadAuthenticator
+
 from keras.engine import Model
 from keras.applications import VGG16
 from keras.applications.vgg16 import preprocess_input
-#from keras.applications import ResNet50 as VGG16
-#from keras.applications.resnet50 import preprocess_input
 import cv2
 
 class FeatureComputer(object):
     def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None):
-        self.context = zmq.Context()
+        self.context = zmq.Context.instance()
+        self.auth = ThreadAuthenticator(self.context)
+        self.auth.start()
+        #auth.allow('127.0.0.1')
+        self.auth.configure_plain(domain='*', passwords={'admin': 'secret'})
         self.socket = self.context.socket(zmq.PAIR)
+        self.socket.plain_server = True
         self.socket.bind(bind_str)
         self.parent_model = parent_model
         self.curr_model = parent_model
+
         if not layer:
             self.layer = 0 #len(self.parent_model.layers) - 1
         else:

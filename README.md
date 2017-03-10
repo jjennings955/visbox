@@ -67,3 +67,4 @@ Optional:
 - I suck at interface design
 - ROI selector makes things slow
 - None of the cool visualization algorithms are implemented
+- Video capture stuff probably shouldn't be happening in the GUI event loop

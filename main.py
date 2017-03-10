@@ -12,6 +12,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         super(VisualizationWindow, self).__init__()
         pg.setConfigOptions(imageAxisOrder='row-major')
         self.settings = load_config()
+
         frame = pg.QtGui.QFrame()
         layout = pg.QtGui.QGridLayout()
         frame.setLayout(layout)
@@ -19,12 +20,10 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_window = pg.GraphicsLayoutWidget(self)
         self.feature_window = pg.GraphicsLayoutWidget(self)
         self.detailed_feature_window = pg.GraphicsLayoutWidget()
-        #self.feature_window.ci.setSpacing(0.0)
 
         self.layer_frame = pg.QtGui.QFrame()
         self.layer_layout = pg.QtGui.QGridLayout()
         self.layer_frame.setLayout(self.layer_layout)
-        #self.layer_layout.addWidget(QtGui.QLabel("Layers: "))
 
         layout.addWidget(self.camera_window, 0, 0, 1, 2)
         layout.addWidget(self.build_config_frame(), 1, 0, 1, 1)
@@ -58,7 +57,10 @@ class VisualizationWindow(QtGui.QMainWindow):
 
         self.build_views()
         self.start_timers()
+        self.process_settings()
 
+
+    def process_settings(self):
         if self.settings.get('auto_connect', False):
            self.init_client(self.settings['servers'][self.settings.get('default_server', 'local')])
            self.start_feature_server_timer()
@@ -75,6 +77,17 @@ class VisualizationWindow(QtGui.QMainWindow):
 
         self.feature_client.get_summary()
         self.feature_client.get_layer_info()
+
+    def build_info_frame(self):
+        self.info_frame = pg.QtGui.QFrame()
+        self.info_layout = pg.QtGui.QGridLayout()
+        self.info_frame.setLayout(self.info_layout)
+        self.layer_dimension_label = pg.QtGui.QLabel("Layer Output Dimensions: ")
+        self.selected_filter_label = pg.QtGui.QLabel("Selected Filter: ")
+        self.connection_health_label = pg.QtGui.QLabel("Server: ")
+        self.fps_label = pg.QtGui.QLabel("FPS: ")
+
+
 
     def build_config_frame(self):
         self.config_frame = pg.QtGui.QFrame()
@@ -252,9 +265,9 @@ class VisualizationWindow(QtGui.QMainWindow):
     def select_filter(self, event):
         x = event.pos().x()
         y = event.pos().y()
-        row = y // self.current_layer_dimensions[0]
-        col = x // self.current_layer_dimensions[1]
 
+        row = y // np.ceil(self.current_layer_dimensions[0] * 1.1)
+        col = x // np.ceil(self.current_layer_dimensions[1] * 1.1)
         n = self.cols*row + col
         if n < self.current_layer_dimensions[2]:
             print("Selected filter {}".format(n))
@@ -263,14 +276,16 @@ class VisualizationWindow(QtGui.QMainWindow):
     def prediction_received(self, result, *args, **kwargs):
         result = result['result'].squeeze()
         transposed = np.transpose(result, (2, 0, 1))
+        #transposed /= np.max(transposed)
+        transposed /= np.max(transposed, axis=(1, 2), keepdims=True) + 1e-3
         image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols)
-        image /= np.max(image)
+        #image /= np.max(image)
         self.last_feature_image = np.uint8(255.0 * image)
         self.features_image.setImage(self.last_feature_image)
         self.features_view.autoRange()
         self.lastframe_view.autoRange()
         if self.selected_filter < transposed.shape[0]:
-            self.detailed_features_image.setImage(transposed[self.selected_filter])
+            self.detailed_features_image.setImage(255*transposed[self.selected_filter])
             self.detailed_feature_view.autoRange()
         self.do_prediction()
 
