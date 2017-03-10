@@ -39,13 +39,13 @@ activate visbox
 python main.py
 ```
 
-Click "Run server" (may take a while depending on GPU/etc). Optionally, you can run server.py in another terminal (or on another server).
-Click "Connect"
-Click "Webcam" or "Video" to select a video source
-Select a layer you find interesting at the bottom
-Click on a feature in the grid to get a better view
+- Click "Run server" (may take a while depending on GPU/etc). Optionally, you can run server.py in another terminal (or on another server).
+- Click "Connect"
+- Click "Webcam" or "Video" to select a video source
+- Select a layer you find interesting at the bottom
+- Click on a feature in the grid to get a better view
 
-Optional:
+- Optional:
 Click ROI to enable a region of interest selector from the video stream
 There is a scroll bar for fastforwarding through a video, that does nothing when you're using a webcam (and probably shouldn't be visible/enabled)
 
@@ -56,4 +56,4 @@ There is a scroll bar for fastforwarding through a video, that does nothing when
 - Doesn't work with fancy architectures (anything with branching i.e. Resnet)
 - I suck at interface design
 - ROI selector makes things slow
-- None of the cool visualization algorithms are implemented 
+- None of the cool visualization algorithms are implemented
