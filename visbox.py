@@ -3,6 +3,7 @@ from pyqtgraph.Qt import QtCore, QtGui
 import numpy as np
 import pyqtgraph as pg
 import cv2
+import PIL.ImageGrab
 
 #from client import FeatureClient
 from networking import FeatureClient
@@ -31,9 +32,9 @@ class VisualizationWindow(QtGui.QMainWindow):
         layout.addWidget(self.feature_window, 2, 0, 2, 2)
         layout.addWidget(self.layer_frame, 3, 0, 2, 2)
 
-        layout.setRowStretch(0, 30)
-        layout.setRowStretch(1, 1)
-        layout.setRowStretch(2, 40)
+        layout.setRowStretch(0, 25)
+        layout.setRowStretch(1, 2)
+        layout.setRowStretch(2, 30)
         layout.setRowStretch(3, 1)
 
         self.setCentralWidget(frame)
@@ -198,6 +199,8 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def camera_callback(self):
         if self.video_capture:
+            #frame = np.array(PIL.ImageGrab.grab())[:, :, ::-1]
+            #has_frame = True
             has_frame, frame = self.video_capture.read()
             first = False
             if has_frame:
@@ -281,8 +284,12 @@ class VisualizationWindow(QtGui.QMainWindow):
     def prediction_received(self, result, *args, **kwargs):
         result = result['result'].squeeze()
         transposed = np.transpose(result, (2, 0, 1))
-        #transposed /= np.max(transposed)
+        #transposed /= np.sqrt(np.mean(transposed**2, axis=(1,2), keepdims=True) + 1e-5)
+        #transposed *= 3
         transposed /= np.max(transposed, axis=(1, 2), keepdims=True) + 1e-3
+        #std = np.std(transposed, axis=(1,2), keepdims=True) + 1e-3
+
+
         image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols, highlight=self.selected_filter)
         #image /= np.max(image)
         self.last_feature_image = np.uint8(255.0 * image)
