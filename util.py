@@ -43,5 +43,5 @@ def load_config():
         return yaml.load(open('config.yaml', 'r'))
     except Exception as e:
         config = default_config()
-        yaml.dump(config, open('config.yaml', 'w'))
+        yaml.dump(config, open('config.yaml', 'w'), default_flow_style=False)
         return config

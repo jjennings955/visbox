@@ -19,20 +19,22 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.camera_window = pg.GraphicsLayoutWidget(self)
         self.feature_window = pg.GraphicsLayoutWidget(self)
         self.detailed_feature_window = pg.GraphicsLayoutWidget()
+        #self.feature_window.ci.setSpacing(0.0)
 
         self.layer_frame = pg.QtGui.QFrame()
         self.layer_layout = pg.QtGui.QGridLayout()
         self.layer_frame.setLayout(self.layer_layout)
+        #self.layer_layout.addWidget(QtGui.QLabel("Layers: "))
 
         layout.addWidget(self.camera_window, 0, 0, 1, 2)
         layout.addWidget(self.build_config_frame(), 1, 0, 1, 1)
         layout.addWidget(self.feature_window, 2, 0, 2, 2)
-        layout.addWidget(self.layer_frame, 3, 0, 1, 2)
+        layout.addWidget(self.layer_frame, 3, 0, 2, 2)
 
-        layout.setRowStretch(0, 3)
-        layout.setRowStretch(1, .1)
-        layout.setRowStretch(2, 4)
-        layout.setRowStretch(3, 0.1)
+        layout.setRowStretch(0, 30)
+        layout.setRowStretch(1, 1)
+        layout.setRowStretch(2, 40)
+        layout.setRowStretch(3, 1)
 
         self.setCentralWidget(frame)
 
@@ -76,24 +78,28 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def build_config_frame(self):
         self.config_frame = pg.QtGui.QFrame()
-        self.config_layout = pg.QtGui.QHBoxLayout()
+        self.config_layout = pg.QtGui.QGridLayout()
         self.config_frame.setLayout(self.config_layout)
         self.server_button = pg.QtGui.QPushButton("Start Server")
         self.connect_button = pg.QtGui.QPushButton("Connect")
         self.webcam_button = pg.QtGui.QPushButton("Camera")
         self.video_button = pg.QtGui.QPushButton("Video")
         self.ROI_button = pg.QtGui.QPushButton("ROI")
+        self.sp = QtGui.QSlider(QtCore.Qt.Horizontal)
         self.cb = QtGui.QComboBox()
 
         self.cb.addItems(list(self.settings['servers'].keys()))
 
         self.config_layout.addWidget(QtGui.QLabel("Server:"))
-        self.config_layout.addWidget(self.cb)
-        self.config_layout.addWidget(self.connect_button)
-        self.config_layout.addWidget(self.webcam_button)
-        self.config_layout.addWidget(self.video_button)
-        self.config_layout.addWidget(self.ROI_button)
-        self.config_layout.addWidget(self.server_button)
+        self.config_layout.addWidget(self.cb, 0, 0)
+        self.config_layout.addWidget(self.connect_button, 0, 1)
+        self.config_layout.addWidget(self.webcam_button, 0, 2)
+        self.config_layout.addWidget(self.video_button, 0, 3)
+        self.config_layout.addWidget(self.ROI_button, 0, 4)
+        self.config_layout.addWidget(self.server_button, 0, 5)
+        self.config_layout.addWidget(self.sp, 1,0, 1, 3)
+        self.sp.valueChanged.connect(self.frame_slider_changed)
+
 
         self.server_button.clicked.connect(self.server_clicked)
         self.webcam_button.clicked.connect(self.webcam_clicked)
@@ -102,6 +108,11 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.connect_button.clicked.connect(self.connect_clicked)
 
         return self.config_frame
+
+    def frame_slider_changed(self):
+        n_frames = self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, self.sp.value()/99.*n_frames)
+
 
     def start_feature_server_timer(self):
         self.feature_server_timer = QtCore.QTimer()
@@ -158,7 +169,6 @@ class VisualizationWindow(QtGui.QMainWindow):
 
         for i, layer in enumerate(self.layer_info):
             button = pg.QtGui.QPushButton("{}".format(layer))
-
             button.clicked.connect(functools.partial(self.set_selected_layer, layer=i, button=button))
             row, col = divmod(i, 16)
             self.layer_layout.addWidget(button, row, col)
@@ -177,6 +187,7 @@ class VisualizationWindow(QtGui.QMainWindow):
                     first = True
                 self.last_frame = frame[:, :, ::-1]
                 self.camera_image.setImage(frame[:, :, ::-1])
+                #self.sp.setSliderPosition(int(self.video_capture.get(cv2.CAP_PROP_POS_AVI_RATIO)*100))
             if first:
                 self.do_prediction()
 
@@ -214,7 +225,7 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def build_features_view(self):
         self.features_view = self.feature_window.addViewBox()
-        self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1600))
+        self.features_view.setRange(QtCore.QRectF(0, 0, 1600, 1100))
         self.features_view.setAspectLocked(True)
         self.features_view.invertY()
         self.features_image = pg.ImageItem(border='w')
