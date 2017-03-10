@@ -85,20 +85,20 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.webcam_button = pg.QtGui.QPushButton("Camera")
         self.video_button = pg.QtGui.QPushButton("Video")
         self.ROI_button = pg.QtGui.QPushButton("ROI")
-        self.sp = QtGui.QSlider(QtCore.Qt.Horizontal)
-        self.cb = QtGui.QComboBox()
+        self.video_slider = QtGui.QSlider(QtCore.Qt.Horizontal)
+        self.server_combo = QtGui.QComboBox()
 
-        self.cb.addItems(list(self.settings['servers'].keys()))
+        self.server_combo.addItems(list(self.settings['servers'].keys()))
 
         self.config_layout.addWidget(QtGui.QLabel("Server:"))
-        self.config_layout.addWidget(self.cb, 0, 0)
+        self.config_layout.addWidget(self.server_combo, 0, 0)
         self.config_layout.addWidget(self.connect_button, 0, 1)
         self.config_layout.addWidget(self.webcam_button, 0, 2)
         self.config_layout.addWidget(self.video_button, 0, 3)
         self.config_layout.addWidget(self.ROI_button, 0, 4)
         self.config_layout.addWidget(self.server_button, 0, 5)
-        self.config_layout.addWidget(self.sp, 1,0, 1, 3)
-        self.sp.valueChanged.connect(self.frame_slider_changed)
+        self.config_layout.addWidget(self.video_slider, 1, 0, 1, 3)
+        self.video_slider.sliderReleased.connect(self.frame_slider_changed)
 
 
         self.server_button.clicked.connect(self.server_clicked)
@@ -111,7 +111,7 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def frame_slider_changed(self):
         n_frames = self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, self.sp.value()/99.*n_frames)
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, self.video_slider.value() / 99. * n_frames)
 
 
     def start_feature_server_timer(self):
@@ -120,7 +120,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.feature_server_timer.start(50)
 
     def connect_clicked(self):
-        self.init_client(self.settings['servers'][self.cb.currentText()])
+        self.init_client(self.settings['servers'][self.server_combo.currentText()])
         if self.feature_server_timer:
             self.feature_server_timer.stop()
         self.start_feature_server_timer()
@@ -187,7 +187,6 @@ class VisualizationWindow(QtGui.QMainWindow):
                     first = True
                 self.last_frame = frame[:, :, ::-1]
                 self.camera_image.setImage(frame[:, :, ::-1])
-                #self.sp.setSliderPosition(int(self.video_capture.get(cv2.CAP_PROP_POS_AVI_RATIO)*100))
             if first:
                 self.do_prediction()
 
