@@ -24,14 +24,19 @@ def good_shape(n, min_aspect=1.0, max_aspect=6, max_width=np.inf, max_height=np.
     #assert len(candidates) > 0
     return candidates[0][1]
 
-def build_imagegrid(image_list, n_rows, n_cols, margin=0.1):
+def build_imagegrid(image_list, n_rows, n_cols, highlight=None, margin=0.1):
 
     n, width, height = image_list.shape
     image_list /= np.max(image_list)
     #image_list /= np.max(image_list, axis=(1,2), keepdims=True) + 1e-3
     side = image_list.shape[1]
     margin = int(np.ceil(side * margin))
-    image = np.ones((n_rows * width + (n_rows) * margin, n_cols * height + (n_cols) * margin))*0.65
+    image = np.ones((n_rows * width + (n_rows) * margin, n_cols * height + (n_cols) * margin))*0.3
+    if highlight is not None:
+        row, col = divmod(highlight, n_cols)
+        image[row * (side + margin):row * (side + margin) + margin*2 + side,
+        col * (side + margin):col * (side + margin) + margin*2 + side] = 1.0
+
     for row in range(n_rows):
         for col in range(n_cols):
             if row * n_cols + col >= n:
@@ -41,7 +46,14 @@ def build_imagegrid(image_list, n_rows, n_cols, margin=0.1):
     return image
 
 def default_config():
-    return { 'servers' : { 'local' : 'tcp://127.0.0.1:5560'}}
+    return { 'servers' : {
+        'local' :
+            { 'address' : 'tcp://127.0.0.1:5560',
+              'username' : 'admin',
+              'password' : 'secret'
+            }
+        }
+    }
 
 def load_config():
     try:

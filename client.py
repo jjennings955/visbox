@@ -6,11 +6,11 @@ def nocallback(*args, **kwarsg):
     pass
 
 class FeatureClient(object):
-    def __init__(self, connect_str="tcp://127.0.0.1:5560"):
+    def __init__(self, connect_str="tcp://127.0.0.1:5560", username=None, password=None):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
-        self.socket.plain_username = b'admin'
-        self.socket.plain_password = b'secret'
+        self.socket.plain_username = bytes(username, 'ascii')
+        self.socket.plain_password = bytes(password, 'ascii')
         self.socket.connect(connect_str)
         self.connect(connect_str)
         self.poller = zmq.Poller()

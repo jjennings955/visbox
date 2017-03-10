@@ -1,4 +1,4 @@
-
+import yaml
 import numpy as np
 import zmq
 import zmq.auth
@@ -10,12 +10,12 @@ from keras.applications.vgg16 import preprocess_input
 import cv2
 
 class FeatureComputer(object):
-    def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None):
+    def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None, logins=None):
         self.context = zmq.Context.instance()
         self.auth = ThreadAuthenticator(self.context)
         self.auth.start()
         #auth.allow('127.0.0.1')
-        self.auth.configure_plain(domain='*', passwords={'admin': 'secret'})
+        self.auth.configure_plain(domain='*', passwords=logins)
         self.socket = self.context.socket(zmq.PAIR)
         self.socket.plain_server = True
         self.socket.bind(bind_str)
@@ -40,6 +40,7 @@ class FeatureComputer(object):
         self.socket.send_pyobj({'type': 'summary', 'result' : None}, zmq.NOBLOCK)
 
     def do_predict(self, *args, **kwargs):
+        # TODO: Make this configurable
         input = kwargs.pop('input', np.zeros((1,224,224,3)))
 
         resized = np.float64(cv2.resize(input, (224, 224)))
@@ -70,13 +71,27 @@ class FeatureComputer(object):
             except:
                 print("Error sending, ignoring")
 
+def default_config():
+    settings = {}
+    settings['bind_addr'] = 'tcp://127.0.0.1:5560'
+    settings['logins'] = {'admin' : 'secret'}
+    with open('server.yaml', 'r') as fd:
+        print("### WARNING - RUNNING WITH DEFAULT PASSWORD ###")
+        return yaml.dump(settings, fd)
+
+
+def load_config(fname):
+    try:
+        with open(fname, 'r') as fd:
+            return yaml.load(fd)
+    except:
+        return default_config()
 
 def run_vgg16():
+    settings = load_config('server.yaml')
     model = VGG16(False, "imagenet")
-    z = FeatureComputer(parent_model=model)
+    z = FeatureComputer(bind_str=settings['bind_addr'], parent_model=model, logins=settings['logins'])
     z.run()
 
 if __name__ == "__main__":
-#    from vggface import load_vggface
-    #model = load_vggface('./models/vggface/vgg-face-keras.h5')
     run_vgg16()

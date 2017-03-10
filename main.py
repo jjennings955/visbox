@@ -62,15 +62,15 @@ class VisualizationWindow(QtGui.QMainWindow):
 
     def process_settings(self):
         if self.settings.get('auto_connect', False):
-           self.init_client(self.settings['servers'][self.settings.get('default_server', 'local')])
+           self.init_client(**self.settings['servers'][self.settings.get('default_server', 'local')])
            self.start_feature_server_timer()
         if self.settings.get('auto_start_camera', False):
             self.webcam_clicked()
 
 
-    def init_client(self, connect_str=None):
-        print("init_client", connect_str)
-        self.feature_client = FeatureClient(connect_str)
+    def init_client(self, address, username, password):
+        print("init_client", address)
+        self.feature_client = FeatureClient(address, username, password)
         self.feature_client.prediction_received(self.prediction_received)
         self.feature_client.layerinfo_received(self.layerinfo_received)
         self.feature_client.summary_received(self.summary_received)
@@ -130,10 +130,10 @@ class VisualizationWindow(QtGui.QMainWindow):
     def start_feature_server_timer(self):
         self.feature_server_timer = QtCore.QTimer()
         self.feature_server_timer.timeout.connect(self.feature_client.check)
-        self.feature_server_timer.start(50)
+        self.feature_server_timer.start(10)
 
     def connect_clicked(self):
-        self.init_client(self.settings['servers'][self.server_combo.currentText()])
+        self.init_client(**self.settings['servers'][self.server_combo.currentText()])
         if self.feature_server_timer:
             self.feature_server_timer.stop()
         self.start_feature_server_timer()
@@ -200,7 +200,7 @@ class VisualizationWindow(QtGui.QMainWindow):
                     first = True
                 self.last_frame = frame[:, :, ::-1]
                 self.camera_image.setImage(frame[:, :, ::-1])
-            if first:
+            if first and self.feature_client:
                 self.do_prediction()
 
     def do_prediction(self):
@@ -278,7 +278,7 @@ class VisualizationWindow(QtGui.QMainWindow):
         transposed = np.transpose(result, (2, 0, 1))
         #transposed /= np.max(transposed)
         transposed /= np.max(transposed, axis=(1, 2), keepdims=True) + 1e-3
-        image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols)
+        image = build_imagegrid(image_list=transposed, n_rows=self.rows, n_cols=self.cols, highlight=self.selected_filter)
         #image /= np.max(image)
         self.last_feature_image = np.uint8(255.0 * image)
         self.features_image.setImage(self.last_feature_image)
