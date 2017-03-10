@@ -4,7 +4,8 @@ import numpy as np
 import pyqtgraph as pg
 import cv2
 
-from client import FeatureClient
+#from client import FeatureClient
+from networking import FeatureClient
 from util import good_shape, build_imagegrid, load_config
 
 class VisualizationWindow(QtGui.QMainWindow):
@@ -120,6 +121,8 @@ class VisualizationWindow(QtGui.QMainWindow):
         self.ROI_button.clicked.connect(self.ROI_clicked)
         self.connect_button.clicked.connect(self.connect_clicked)
 
+        self.ROI_button.setCheckable(True)
+
         return self.config_frame
 
     def frame_slider_changed(self):
@@ -160,9 +163,11 @@ class VisualizationWindow(QtGui.QMainWindow):
     def ROI_clicked(self, *args, **kwargs):
         if not self.selector:
             self.selector = pg.RectROI((5, 5), size=(640, 480))
+            self.ROI_button.setChecked(True)
             self.camera_view.addItem(self.selector)
         else:
             self.camera_view.removeItem(self.selector)
+            self.ROI_button.setChecked(False)
             self.selector = None
 
 
