@@ -1,6 +1,7 @@
+from keras.backend.tensorflow_backend import set_session
 import numpy as np
 import zmq
-
+import tensorflow as tf
 
 def nocallback(*args, **kwarsg):
     pass
@@ -63,12 +64,13 @@ import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
 
 from keras.engine import Model
-from keras.applications import VGG16
-from keras.applications.vgg16 import preprocess_input
+#from keras.applications import VGG16
+#from keras.applications.vgg16 import preprocess_input
+from keras.applications.resnet50 import preprocess_input
 import cv2
 
 class FeatureComputer(object):
-    def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None, logins=None):
+    def __init__(self, bind_str="tcp://127.0.0.1:5560", parent_model=None, layer=None, logins=None, viewable_layers=None):
         self.context = zmq.Context.instance()
         self.auth = ThreadAuthenticator(self.context)
         self.auth.start()
@@ -79,9 +81,14 @@ class FeatureComputer(object):
         self.socket.bind(bind_str)
         self.parent_model = parent_model
         self.curr_model = parent_model
+        self.viewable_layers = viewable_layers
+
+        self.config = tf.ConfigProto()
+        self.config.gpu_options.per_process_gpu_memory_fraction = 0.3
+        self.config.gpu_options.allow_growth = True
 
         if not layer:
-            self.layer = 0 #len(self.parent_model.layers) - 1
+            self.layer = 5 #len(self.parent_model.layers) - 1
         else:
             self.layer = layer
 
@@ -89,8 +96,13 @@ class FeatureComputer(object):
         print("Changing layer")
         print(args, kwargs)
         self.layer = kwargs.get('layer', self.layer)
-        self.curr_model = Model(input=[self.parent_model.layers[0].input],
-                           output=[self.parent_model.layers[self.layer].output])
+        if not self.viewable_layers:
+            self.curr_model = Model(input=[self.parent_model.layers[0].input],
+                               output=[self.parent_model.layers[self.layer].output])
+        else:
+            self.curr_model = Model(input=[self.parent_model.layers[0].input],
+                               output=[self.viewable_layers[self.layer].output])
+        #set_session(tf.Session(config=self.config))
         print(self.layer)
         self.socket.send_pyobj({'type': 'layer_changed', 'success': True}, zmq.NOBLOCK)
 
@@ -102,45 +114,51 @@ class FeatureComputer(object):
         input = kwargs.pop('input', np.zeros((1,224,224,3)))
 
         resized = np.float64(cv2.resize(input, (224, 224)))
-        preprocessed = preprocess_input(np.expand_dims(resized, axis=0), dim_ordering='tf')
+        preprocessed = preprocess_input(np.expand_dims(resized, axis=0))
 
         result = self.curr_model.predict(preprocessed, verbose=0)
         self.socket.send_pyobj({'type': 'prediction', 'result': result}, zmq.NOBLOCK)
 
     def do_layerinfo(self, *args, **kwargs):
-        self.socket.send_pyobj({'type': 'layer_info', 'shape': self.curr_model.get_output_shape_for((1, 224, 224, 3)), 'name' : self.parent_model.layers[self.layer].name }, zmq.NOBLOCK)
+        self.socket.send_pyobj({'type': 'layer_info', 'shape': self.curr_model.compute_output_shape((1, 224, 224, 3)), 'name' : self.parent_model.layers[self.layer].name }, zmq.NOBLOCK)
 
     def do_summary(self, *args, **kwargs):
-        self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.parent_model.layers]}, zmq.NOBLOCK)
+        if not self.viewable_layers:
+            self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.parent_model.layers]}, zmq.NOBLOCK)
+        else:
+            self.socket.send_pyobj({'type': 'summary', 'result': [layer.name for layer in self.viewable_layers]}, zmq.NOBLOCK)
+
+    def handle_message(self, message):
+        if message['type'] == "change_layer":
+            self.change_layer(**message)
+        if message['type'] == 'predict':
+            self.do_predict(**message)
+        if message['type'] == 'layer_info':
+            self.do_layerinfo(**message)
+        if message['type'] == 'summary':
+            self.do_summary(**message)
 
     def run(self):
         self.running = True
         while self.running:
             message = self.socket.recv_pyobj()
-            try:
-                if message['type'] == "change_layer":
-                    self.change_layer(**message)
-                if message['type'] == 'predict':
-                    self.do_predict(**message)
-                if message['type'] == 'layer_info':
-                    self.do_layerinfo(**message)
-                if message['type'] == 'summary':
-                    self.do_summary(**message)
-            except:
-                print("Error sending, ignoring")
+            self.handle_message(message)
 
 def default_config():
     settings = {}
     settings['bind_addr'] = 'tcp://127.0.0.1:5560'
     settings['logins'] = {'admin' : 'secret'}
-    with open('server.yaml', 'r') as fd:
-        print("### WARNING - RUNNING WITH DEFAULT PASSWORD ###")
-        return yaml.dump(settings, fd)
+    return settings
+    # with open('server.yaml', 'r') as fd:
+    #     print("### WARNING - RUNNING WITH DEFAULT PASSWORD ###")
+    #     return yaml.dump(settings, fd)
 
 
 def load_config(fname):
     try:
+        config = default_config()
         with open(fname, 'r') as fd:
-            return yaml.load(fd)
-    except:
-        return default_config()
+            config.update(yaml.load(fd))
+
+    finally:
+        return config
